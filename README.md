@@ -54,16 +54,16 @@ This integration repository focuses on **Cluster 1** use cases with the followin
 ```mermaid
 graph TB
     M[Maestro]
-    DO1[DO 1]
-    DO2[DO N]
-    T1[Trans]
-    T2[Trans]
-    G1[Git 1]
-    G2[Git N]
-    C1[Colony]
-    C2[Colony]
-    F1[Log 1]
-    F2[Log N]
+    DO1[Domain Orchestrator 1]
+    DO2[Domain Orchestrator N]
+    T1[Translator]
+    T2[Translator]
+    G1[Git Repository 1]
+    G2[Git Repository N]
+    C1[ColonyOS]
+    C2[ColonyOS]
+    F1[Log Server 1]
+    F2[Log Server N]
 
     M --> DO1
     M --> DO2
@@ -84,20 +84,20 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant Maestro
-    participant D as DO
-    participant T
-    participant G
-    participant C
-    participant R
+    participant DO as Domain Orchestrator
+    participant T as Translator
+    participant G as Git Repository
+    participant C as ColonyOS
+    participant R as Reconciler
 
-    Maestro->>D: Order
-    D->>T: Fwd
-    T->>G: BP
-    G->>C: Sync
-    C->>R: Deploy
-    R->>R: Recon
-    R-->>D: Status
-    D-->>Maestro: OK
+    Maestro->>DO: Service Order
+    DO->>T: Forward Order
+    T->>G: Commit Blueprint
+    G->>C: GitOps Sync
+    C->>R: Deploy Blueprint
+    R->>R: Reconcile
+    R-->>DO: Status Update
+    DO-->>Maestro: Report
 ```
 
 ## ColonyOS Reconciliation
@@ -117,13 +117,13 @@ sequenceDiagram
 
 ```mermaid
 graph LR
-    BP[BP]
-    Q[Queue]
-    P[Poll]
-    H[Heal]
-    R[Recon]
-    D[Docker]
-    C[Cont]
+    BP[Blueprints]
+    Q[Process Queue]
+    P[Polling Loop]
+    H[Self-Healing]
+    R[Reconciler Engine]
+    D[Docker API]
+    C[Containers]
 
     BP --> Q
     P --> Q
@@ -137,27 +137,27 @@ graph LR
 
 ```mermaid
 sequenceDiagram
-    participant U
-    participant S
-    participant R
-    participant D
+    participant U as User
+    participant S as Server
+    participant R as Reconciler
+    participant D as Docker
 
-    U->>S: Update
-    Note over S: Gen++
-    S->>R: Proc
-    R->>D: List
-    D-->>R: State
+    U->>S: Update Blueprint
+    Note over S: Increment Generation
+    S->>R: Reconciliation Process
+    R->>D: List Containers
+    D-->>R: Current State
 
-    alt Old Gen
-        R->>D: Remove
-        R->>D: Create
+    alt Old Generation
+        R->>D: Remove Old
+        R->>D: Create New
     end
 
     alt Scale
-        R->>D: Adjust
+        R->>D: Adjust Replicas
     end
 
-    R-->>S: OK
+    R-->>S: Report Status
 ```
 
 ## Current Implementation
@@ -205,46 +205,3 @@ cd colonyos/blueprints/arrowhead
 colonies blueprint ls
 colonies blueprint get --name c1-serviceregistry
 ```
-
-### Deploy Additional Executors
-
-```bash
-colonies blueprint add --spec colonyos/blueprints/container-executor/local-docker-executor-deployment.json
-```
-
-### Cleanup
-
-```bash
-cd colonyos/blueprints/arrowhead
-./cleanup-arrowhead-c1.sh
-```
-
-## Current Workflow (Without GitOps)
-
-1. Manual blueprint creation
-2. Direct deployment: `colonies blueprint add --spec blueprint.json`
-3. Reconciler executes deployment
-4. Status monitoring: `colonies blueprint ls`
-
-## Future Development
-
-### High Priority
-- [] GitOps sync mechanism in ColonyOS
-- [] Service Order Translator (OpenSlice to Blueprints)
-- [] Log server integration for async feedback to DomainOrch
-
-### New Reconcilers
-- [] **OpenNebula reconciler**: Deploy and manage VMs for heavier workloads at industrial sites
-- [] **Kubernetes reconciler**: Manage Kubernetes clusters at edge locations with sufficient resources
-- [] **Network reconciler**: Configure network infrastructure declaratively based on OpenZiti 
-
-## References
-
-- [COP-Pilot EU Project](https://cop-pilot.eu)
-- [ColonyOS](https://github.com/colonyos/colonies)
-- [Eclipse Arrowhead](https://github.com/eclipse-arrowhead)
-- [OpenSlice](https://openslice.io/)
-
-## License
-
-Apache License 2.0 - See LICENSE file
