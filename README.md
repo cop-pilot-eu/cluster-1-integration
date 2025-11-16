@@ -1,47 +1,55 @@
-# COP-Pilot ColonyOS Integration
+# COP-Pilot Cluster 1 Integration
+
+**COP-Pilot** is an EU-funded research initiative creating an open, multi-layer orchestration platform for collaborative applications across service domains.
 
 This repository provides integration software for deploying software such as **Eclipse Arrowhead Framework** and **ColonyOS executors** as part of the **COP-Pilot EU project**, enabling distributed edge computing orchestration across European domains through OpenSlice and ColonyOS.
 
-## About COP-Pilot
+## Key Value Proposition
 
-**COP-Pilot** is an EU-funded research initiative creating an open, multi-layer orchestration platform for collaborative applications across service domains. 
-
-### Cluster 1
-
-This integration repository focuses on **Cluster 1** use cases involving:
-
-- **[RockSigma](https://www.rocksigma.com)**: Seismic monitoring and data processing for underground mining operations (already using ColonyOS)
-- **[Thingwave](https://www.thingwave.com/)**: IoT solutions for mining operations
-- **[Predge](https://predge.se)**: AI-powered predictive maintenance for rail and mining equipment
-- **[Hosch](https://www.hosch-international.com)**: Conveyor belt cleaning and monitoring systems for mining
-
-### Key Value Proposition
-
-**Managing software deployments at remote industrial sites (mines, factories, rail infrastructure) is challenging today because:**
-- Traditional orchestrators (Kubernetes, Docker Swarm) require direct network access and VPN connectivity
+**Managing software deployments at remote industrial sites (mines, industrial infrastructure) is challenging today because:**
+- Traditional orchestrators (e.g. Kubernetes) require direct network access and VPN connectivity
 - Industrial sites often have restricted network access, firewalls, and air-gapped environments
 - Managing infrastructure across multiple administrative domains requires complex coordination
-- Centralized orchestration creates single points of failure and doesn't scale across distributed edge locations
+- Centralised orchestration creates single points of failure and doesn't scale across distributed edge locations
 - IoT devices and embedded systems are too resource-constrained for heavy orchestration platforms
 
 **COP-Pilot solves this by:**
 
-**Decentralized Reconciliation**: Unlike Kubernetes which requires control plane connectivity, ColonyOS executors pull work from the server. This means mines and industrial plants can be behind NAT/firewalls - reconcilers reach out, making direct access unnecessary.
+**Decentralised Reconciliation**: Unlike Kubernetes which requires control plane connectivity, ColonyOS executors pull work from the server. This means mines and industrial plants can be behind NAT/firewalls and ColonyOS reconcilers can still reach out, making direct access unnecessary.
 
-**Lightweight Architecture**: Inspired by Kubernetes reconciliation patterns but designed for resource-constrained environments. ColonyOS can manage IoT devices, embedded Arrowhead systems, and edge infrastructure where traditional orchestrators are too heavy. The reconciler architecture is extensible - different reconcilers can manage different infrastructure types (Docker containers, VMs, Kubernetes clusters).
+**Lightweight Architecture**: Inspired by Kubernetes reconciliation patterns but designed for resource-constrained environments. ColonyOS can manage IoT devices, embedded Arrowhead systems, and edge infrastructure where traditional orchestrators are too heavy. The reconciler architecture is extensible - different reconcilers can manage different infrastructure types (Docker containers, VMs, Kubernetes clusters, or application reconfiguration).
 
-**Indirect Management via GitOps**: Domain orchestrators commit blueprints to Git repositories. ColonyOS reconcilers automatically sync and deploy - no direct orchestrator-to-site connection needed. Changes propagate through Git, enabling infrastructure-as-code practices at the edge.
+**Indirect Management via GitOps**: Domain orchestrators commit blueprints to Git repositories. ColonyOS reconcilers automatically sync and deploy, this no direct orchestrator-to-site connection needed. Changes propagate through Git, enabling infrastructure-as-code practices at the edge.
 
-**Multi-Domain Orchestration**: Maestro coordinates across European domains, each with local OpenSlice orchestrators, which control ColonyOS clusters at mine sites. This hierarchical model respects organizational boundaries while enabling centralized coordination.
+**Multi-Domain Orchestration**: Maestro coordinates across European domains, each with local OpenSlice orchestrators, which control ColonyOS clusters at mine sites. This hierarchical model respects organisational boundaries while enabling centralised coordination.
 
 This makes it possible for the first time to manage software deployments at remote mines and industrial facilities indirectly through declarative blueprints, without requiring direct network access to edge infrastructure.
+
+This integration repository focuses on **Cluster 1** use cases with the following industrial partners:
+
+**[RockSigma](https://www.rocksigma.com)** - Seismic monitoring and data processing for underground mining
+- Already using ColonyOS for their BEMIS seismic processing system
+- **Value**: Cloud bursting - combine on-premise edge processing at mine sites with cloud resources for heavy computational workloads. Process time-critical seismic data locally while leveraging cloud for advanced analytics and long-term processing.
+- **Value**: Unified orchestration across multiple mine sites globally, managing distributed seismic monitoring infrastructure from a single control plane
+
+**[Thingwave](https://www.thingwave.com/)** - IoT solutions for mining operations
+- **Value**: Manage thousands of IoT sensors and devices across remote mine sites without requiring direct network access
+- **Value**: Deploy and update edge analytics software on IoT gateways at mines through GitOps, eliminating manual site visits
+
+**[Predge](https://predge.se)** - AI-powered predictive maintenance for rail and mining equipment
+- **Value**: Deploy AI/ML models for predictive maintenance at the edge (on trains, mining equipment) where connectivity is intermittent
+- **Value**: Continuous model updates via GitOps - update predictive models across distributed rail and mining assets without direct connectivity
+
+**[Hosch](https://www.hosch-international.com)** - Conveyor belt cleaning and monitoring systems
+- **Value**: Manage conveyor monitoring systems across multiple mine sites centrally
+- **Value**: Deploy software updates to embedded systems in conveyor belt monitoring equipment at remote locations
 
 ## Architecture
 
 **COP-Pilot** uses a hierarchical orchestration model:
 - **Domain Orchestrators**: Regional OpenSlice instances managing local infrastructure
 - **Maestro**: Central orchestrator coordinating all Domain Orchestrators
-- **ColonyOS**: Compute continuum layer executing workloads via reconcilers
+- **ColonyOS**: Compute continuum layer executing workloads via reconcilers and meta processes
 
 ```mermaid
 graph TB
@@ -177,63 +185,6 @@ sequenceDiagram
     R-->>S: Status
 ```
 
-### Generation-Based Updates
-
-Each blueprint update increments the generation counter, enabling:
-- Automatic detection of outdated containers
-- Zero-downtime rolling updates
-- Easy rollback via generation tracking
-
-```mermaid
-flowchart LR
-    Start([Create]) --> Gen1[Gen 1<br/>3 containers]
-    Gen1 -->|Update image| Gen2[Gen 2<br/>3 containers]
-    Gen2 -->|Scale up| Gen3[Gen 3<br/>5 containers]
-```
-
-### Blueprint Types
-
-**ExecutorDeployment** - Deploy ColonyOS executors with auto-registration:
-```json
-{
-  "kind": "ExecutorDeployment",
-  "metadata": {"name": "docker-pool"},
-  "spec": {
-    "image": "colonyos/dockerexecutor:latest",
-    "replicas": 5,
-    "executorType": "container-executor"
-  }
-}
-```
-
-**DockerDeployment** - Deploy multi-container applications:
-```json
-{
-  "kind": "DockerDeployment",
-  "metadata": {"name": "arrowhead-cloud"},
-  "spec": {
-    "instances": [
-      {
-        "name": "service-registry",
-        "image": "aitiaiiot/arrowhead-system:4.6.1",
-        "ports": [{"host": 8443, "container": 8443, "protocol": "tcp"}]
-      }
-    ]
-  }
-}
-```
-
-## Components
-
-| Component | Status | Purpose |
-|-----------|--------|---------|
-| **Maestro** | Production | Central orchestrator coordinating all domains |
-| **Domain Orchestrators** | Production | OpenSlice instances managing regional infrastructure |
-| **Service Order Translator** | Planned | Converts OpenSlice orders → ColonyOS blueprints |
-| **GitOps Layer** | Planned | Git repos as source of truth for blueprints |
-| **ColonyOS Clusters** | Production | Distributed execution with reconcilers |
-| **Log Servers** | Planned | Async feedback to domain orchestrators |
-
 ## Current Implementation
 
 ### Arrowhead Framework Deployment
@@ -303,19 +254,14 @@ cd colonyos/blueprints/arrowhead
 ## Future Development
 
 ### High Priority
-- [ ] GitOps sync mechanism in ColonyOS
-- [ ] Service Order Translator (OpenSlice → Blueprints)
-- [ ] Log server integration for async feedback
+- [] GitOps sync mechanism in ColonyOS
+- [] Service Order Translator (OpenSlice to Blueprints)
+- [] Log server integration for async feedback to DomainOrch
 
 ### New Reconcilers
-- [ ] **OpenNebula reconciler**: Deploy and manage VMs for heavier workloads at industrial sites
-- [ ] **Kubernetes reconciler**: Manage Kubernetes clusters at edge locations with sufficient resources
-- [ ] **Network reconciler**: Configure network infrastructure declaratively using OpenZiti 
-
-### Medium Priority
-- [ ] Enhanced blueprint types for multi-infrastructure deployments
-- [ ] Monitoring and metrics integration
-- [ ] Cross-reconciler orchestration (e.g., VM + containers + K8s in one blueprint)
+- [] **OpenNebula reconciler**: Deploy and manage VMs for heavier workloads at industrial sites
+- [] **Kubernetes reconciler**: Manage Kubernetes clusters at edge locations with sufficient resources
+- [] **Network reconciler**: Configure network infrastructure declaratively based on OpenZiti 
 
 ## References
 
