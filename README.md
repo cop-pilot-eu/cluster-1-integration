@@ -53,68 +53,51 @@ This integration repository focuses on **Cluster 1** use cases with the followin
 
 ```mermaid
 graph TB
-    subgraph Central
-        M[Maestro]
-    end
+    M[Maestro]
+    DO1[DO 1]
+    DO2[DO N]
+    T1[Trans]
+    T2[Trans]
+    G1[Git 1]
+    G2[Git N]
+    C1[Colony]
+    C2[Colony]
+    F1[Log 1]
+    F2[Log N]
 
-    subgraph Domains
-        DO1[Domain Orch 1]
-        DO2[Domain Orch N]
-    end
-
-    subgraph Translation
-        T1[Translator]
-        T2[Translator]
-    end
-
-    subgraph GitOps
-        G1[Git Repo 1]
-        G2[Git Repo N]
-    end
-
-    subgraph Execution
-        C1[ColonyOS]
-        C2[ColonyOS]
-    end
-
-    subgraph Feedback
-        F1[Log Server 1]
-        F2[Log Server N]
-    end
-
-    M -->|Orders| DO1
-    M -->|Orders| DO2
+    M --> DO1
+    M --> DO2
     DO1 --> T1
     DO2 --> T2
-    T1 -->|Blueprint| G1
-    T2 -->|Blueprint| G2
-    G1 -->|Sync| C1
-    G2 -->|Sync| C2
-    C1 -.->|Logs| F1
-    C2 -.->|Logs| F2
-    F1 -.->|Status| DO1
-    F2 -.->|Status| DO2
+    T1 --> G1
+    T2 --> G2
+    G1 --> C1
+    G2 --> C2
+    C1 -.-> F1
+    C2 -.-> F2
+    F1 -.-> DO1
+    F2 -.-> DO2
 ```
 
 ### Integration Flow
 
 ```mermaid
 sequenceDiagram
-    participant M
-    participant DO as Domain
-    participant T as Trans
-    participant G as Git
-    participant C as Colony
-    participant R as Recon
+    participant Maestro
+    participant D as DO
+    participant T
+    participant G
+    participant C
+    participant R
 
-    M->>DO: Order
-    DO->>T: Forward
-    T->>G: Blueprint
+    Maestro->>D: Order
+    D->>T: Fwd
+    T->>G: BP
     G->>C: Sync
     C->>R: Deploy
-    R->>R: Reconcile
-    R-->>DO: Status
-    DO-->>M: Report
+    R->>R: Recon
+    R-->>D: Status
+    D-->>Maestro: OK
 ```
 
 ## ColonyOS Reconciliation
@@ -134,55 +117,47 @@ sequenceDiagram
 
 ```mermaid
 graph LR
-    subgraph Server
-        BP[Blueprints]
-        PROC[Queue]
-    end
+    BP[BP]
+    Q[Queue]
+    P[Poll]
+    H[Heal]
+    R[Recon]
+    D[Docker]
+    C[Cont]
 
-    subgraph Reconciler
-        POLL[Poll]
-        HEAL[Heal]
-        REC[Engine]
-    end
-
-    subgraph Edge
-        API[Docker]
-        C[Containers]
-    end
-
-    BP --> PROC
-    POLL --> PROC
-    PROC --> REC
-    HEAL -.-> REC
-    REC <--> API
-    API --> C
+    BP --> Q
+    P --> Q
+    Q --> R
+    H -.-> R
+    R <--> D
+    D --> C
 ```
 
 ### Reconciliation Process
 
 ```mermaid
 sequenceDiagram
-    participant U as User
-    participant S as Server
-    participant R as Reconciler
-    participant D as Docker
+    participant U
+    participant S
+    participant R
+    participant D
 
-    U->>S: Update Blueprint
+    U->>S: Update
     Note over S: Gen++
-    S->>R: Process
-    R->>D: List Containers
-    D-->>R: Current State
+    S->>R: Proc
+    R->>D: List
+    D-->>R: State
 
-    alt Old Generation
-        R->>D: Remove Old
-        R->>D: Create New
+    alt Old Gen
+        R->>D: Remove
+        R->>D: Create
     end
 
     alt Scale
-        R->>D: Adjust Replicas
+        R->>D: Adjust
     end
 
-    R-->>S: Status
+    R-->>S: OK
 ```
 
 ## Current Implementation
