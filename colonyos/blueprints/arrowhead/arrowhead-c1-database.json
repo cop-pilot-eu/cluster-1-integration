@@ -1,0 +1,39 @@
+{
+  "metadata": {
+    "name": "c1-database",
+    "labels": {
+      "cloud": "c1",
+      "component": "database",
+      "arrowhead": "true"
+    }
+  },
+  "kind": "DockerDeployment",
+  "spec": {
+    "replicas": 1,
+    "instances": [
+      {
+        "name": "c1-database",
+        "type": "container",
+        "image": "aitiaiiot/arrowhead-database:4.6.1",
+        "environment": {
+          "TZ": "Europe/Amsterdam"
+        },
+        "ports": [
+          {
+            "host": 3306,
+            "container": 3306,
+            "protocol": "tcp"
+          }
+        ],
+        "volumes": [
+          {
+            "type": "named",
+            "name": "c1-database",
+            "mountPath": "/var/lib/mysql",
+            "readOnly": false
+          }
+        ]
+      }
+    ]
+  }
+}
