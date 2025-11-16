@@ -13,7 +13,7 @@ This integration repository focuses on **Cluster 1** use cases involving:
 - **[RockSigma](https://www.rocksigma.com)**: Seismic monitoring and data processing for underground mining operations (already using ColonyOS)
 - **[Thingwave](https://www.thingwave.com/)**: IoT solutions for mining operations
 - **[Predge](https://predge.se)**: AI-powered predictive maintenance for rail and mining equipment
-- **Hosch**: Conveyor belt cleaning and monitoring systems for mining
+- **[Hosch](https://www.hosch-international.com)**: Conveyor belt cleaning and monitoring systems for mining
 
 ### Key Value Proposition
 
@@ -45,45 +45,45 @@ This makes it possible for the first time to manage software deployments at remo
 
 ```mermaid
 graph TB
-    subgraph "Central"
+    subgraph Central
         M[Maestro]
     end
 
-    subgraph "Domains"
-        DO1[Domain Orchestrator 1<br/>OpenSlice]
-        DO2[Domain Orchestrator N<br/>OpenSlice]
+    subgraph Domains
+        DO1[Domain Orch 1]
+        DO2[Domain Orch N]
     end
 
-    subgraph "Translation"
-        T1[Service Order<br/>Translator]
-        T2[Service Order<br/>Translator]
+    subgraph Translation
+        T1[Translator]
+        T2[Translator]
     end
 
-    subgraph "GitOps"
+    subgraph GitOps
         G1[Git Repo 1]
         G2[Git Repo N]
     end
 
-    subgraph "Execution"
-        C1[ColonyOS + Reconcilers]
-        C2[ColonyOS + Reconcilers]
+    subgraph Execution
+        C1[ColonyOS]
+        C2[ColonyOS]
     end
 
-    subgraph "Feedback"
+    subgraph Feedback
         F1[Log Server 1]
         F2[Log Server N]
     end
 
-    M -->|Service Orders| DO1
-    M -->|Service Orders| DO2
-    DO1 -->|OpenSlice Orders| T1
-    DO2 -->|OpenSlice Orders| T2
-    T1 -->|Blueprints| G1
-    T2 -->|Blueprints| G2
-    G1 -->|GitOps Sync| C1
-    G2 -->|GitOps Sync| C2
-    C1 -.->|Async Logs| F1
-    C2 -.->|Async Logs| F2
+    M -->|Orders| DO1
+    M -->|Orders| DO2
+    DO1 --> T1
+    DO2 --> T2
+    T1 -->|Blueprint| G1
+    T2 -->|Blueprint| G2
+    G1 -->|Sync| C1
+    G2 -->|Sync| C2
+    C1 -.->|Logs| F1
+    C2 -.->|Logs| F2
     F1 -.->|Status| DO1
     F2 -.->|Status| DO2
 ```
@@ -92,23 +92,21 @@ graph TB
 
 ```mermaid
 sequenceDiagram
-    participant M as Maestro
-    participant DO as Domain Orchestrator
-    participant T as Translator
-    participant Git as Git Repo
-    participant C as ColonyOS
-    participant R as Reconciler
-    participant LS as Log Server
+    participant M
+    participant DO as Domain
+    participant T as Trans
+    participant G as Git
+    participant C as Colony
+    participant R as Recon
 
-    M->>DO: Service Order
-    DO->>T: Forward Order
-    T->>Git: Commit Blueprint
-    Git->>C: GitOps Sync
-    C->>R: Deploy Blueprint
-    R->>R: Reconcile State
-    R->>LS: Upload Logs
-    LS->>DO: Status Update
-    DO->>M: Report
+    M->>DO: Order
+    DO->>T: Forward
+    T->>G: Blueprint
+    G->>C: Sync
+    C->>R: Deploy
+    R->>R: Reconcile
+    R-->>DO: Status
+    DO-->>M: Report
 ```
 
 ## ColonyOS Reconciliation
@@ -127,20 +125,20 @@ sequenceDiagram
 **Planned Reconcilers**: OpenNebula reconciler (VMs), Kubernetes reconciler (K8s clusters), and network reconciler will extend management to additional infrastructure types at mine sites and industrial facilities.
 
 ```mermaid
-graph TB
-    subgraph "ColonyOS Server"
+graph LR
+    subgraph Server
         BP[Blueprints]
-        PROC[Process Queue]
+        PROC[Queue]
     end
 
-    subgraph "Docker Reconciler"
-        POLL[Poll: 100ms]
-        HEAL[Self-Heal: 60s]
-        REC[Reconciler]
+    subgraph Reconciler
+        POLL[Poll]
+        HEAL[Heal]
+        REC[Engine]
     end
 
-    subgraph "Infrastructure"
-        API[Docker API]
+    subgraph Edge
+        API[Docker]
         C[Containers]
     end
 
@@ -156,27 +154,27 @@ graph TB
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant Server
-    participant Reconciler
-    participant Docker
+    participant U as User
+    participant S as Server
+    participant R as Reconciler
+    participant D as Docker
 
-    User->>Server: Create/Update Blueprint
-    Note over Server: Increment Generation
-    Server->>Reconciler: Reconciliation Process
-    Reconciler->>Docker: List Containers (by label)
-    Docker-->>Reconciler: Existing Containers
+    U->>S: Update Blueprint
+    Note over S: Gen++
+    S->>R: Process
+    R->>D: List Containers
+    D-->>R: Current State
 
-    alt Old Generation Found
-        Reconciler->>Docker: Stop & Remove Old
-        Reconciler->>Docker: Create New
+    alt Old Generation
+        R->>D: Remove Old
+        R->>D: Create New
     end
 
-    alt Replica Mismatch
-        Reconciler->>Docker: Scale Up/Down
+    alt Scale
+        R->>D: Adjust Replicas
     end
 
-    Reconciler-->>Server: Report Status
+    R-->>S: Status
 ```
 
 ### Generation-Based Updates
@@ -187,15 +185,10 @@ Each blueprint update increments the generation counter, enabling:
 - Easy rollback via generation tracking
 
 ```mermaid
-stateDiagram-v2
-    [*] --> Gen1: Create (replicas: 3)
-    Gen1 --> Gen2: Update image
-    Gen2 --> Gen3: Scale (replicas: 5)
-    Gen3 --> [*]
-
-    note right of Gen1: 3 containers, gen=1
-    note right of Gen2: Recreate 3 with new image, gen=2
-    note right of Gen3: Add 2 more, gen=3
+flowchart LR
+    Start([Create]) --> Gen1[Gen 1<br/>3 containers]
+    Gen1 -->|Update image| Gen2[Gen 2<br/>3 containers]
+    Gen2 -->|Scale up| Gen3[Gen 3<br/>5 containers]
 ```
 
 ### Blueprint Types
